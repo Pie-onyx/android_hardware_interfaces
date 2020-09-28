@@ -19,6 +19,7 @@
 
 #include <list>
 #include <map>
+#include <mutex>
 
 #include <android-base/macros.h>
 #include <android/hardware/wifi/1.3/IWifiChip.h>
@@ -246,6 +247,7 @@ class WifiChip : public V1_3::IWifiChip {
     std::string allocateApIfaceName();
     std::string allocateStaIfaceName();
     bool writeRingbufferFilesInternal();
+    void QcRemoveAndClearDynamicIfaces();
 
     ChipId chip_id_;
     std::weak_ptr<legacy_hal::WifiLegacyHal> legacy_hal_;
@@ -261,6 +263,7 @@ class WifiChip : public V1_3::IWifiChip {
     bool is_valid_;
     // Members pertaining to chip configuration.
     uint32_t current_mode_id_;
+    std::mutex lock_t;
     std::vector<IWifiChip::ChipMode> modes_;
     // The legacy ring buffer callback API has only a global callback
     // registration mechanism. Use this to check if we have already
@@ -268,6 +271,9 @@ class WifiChip : public V1_3::IWifiChip {
     bool debug_ring_buffer_cb_registered_;
     hidl_callback_util::HidlCallbackHandler<V1_2::IWifiChipEventCallback>
         event_cb_handler_;
+
+    std::vector<sp<WifiApIface>> created_ap_ifaces_;
+    std::vector<sp<WifiStaIface>> created_sta_ifaces_;
 
     DISALLOW_COPY_AND_ASSIGN(WifiChip);
 };

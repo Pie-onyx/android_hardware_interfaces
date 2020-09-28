@@ -42,8 +42,11 @@ namespace iface_util {
 WifiIfaceUtil::WifiIfaceUtil(
     const std::weak_ptr<wifi_system::InterfaceTool> iface_tool)
     : iface_tool_(iface_tool),
-      random_mac_address_(nullptr),
-      event_handlers_map_() {}
+      random_mac_address_index_(0),
+      event_handlers_map_() {
+    for (int i=0; i < MAX_RANDOM_MAC_ADDR_INDEX; i++)
+        random_mac_address_[i] = nullptr;
+}
 
 std::array<uint8_t, 6> WifiIfaceUtil::getFactoryMacAddress(
     const std::string& iface_name) {
@@ -76,13 +79,22 @@ bool WifiIfaceUtil::setMacAddress(const std::string& iface_name,
     return true;
 }
 
-std::array<uint8_t, 6> WifiIfaceUtil::getOrCreateRandomMacAddress() {
-    if (random_mac_address_) {
-        return *random_mac_address_.get();
+void WifiIfaceUtil::setRandomMacAddressIndex(int idx) {
+    if (idx >= MAX_RANDOM_MAC_ADDR_INDEX) {
+        LOG(ERROR) << "Requested random mac address index crossed max limit!!";
+        return;
     }
-    random_mac_address_ =
+
+    random_mac_address_index_ = idx;
+}
+
+std::array<uint8_t, 6> WifiIfaceUtil::getOrCreateRandomMacAddress() {
+    if (random_mac_address_[random_mac_address_index_]) {
+        return *random_mac_address_[random_mac_address_index_].get();
+    }
+    random_mac_address_[random_mac_address_index_] =
         std::make_unique<std::array<uint8_t, 6>>(createRandomMacAddress());
-    return *random_mac_address_.get();
+    return *random_mac_address_[random_mac_address_index_].get();
 }
 
 void WifiIfaceUtil::registerIfaceEventHandlers(const std::string& iface_name,
@@ -109,6 +121,15 @@ std::array<uint8_t, 6> WifiIfaceUtil::createRandomMacAddress() {
     address[0] |= kMacAddressLocallyAssignedMask;
     address[0] &= ~kMacAddressMulticastMask;
     return address;
+}
+
+bool WifiIfaceUtil::SetUpState(const std::string& iface_name, bool request_up) {
+    LOG(ERROR) << "SetUpState " << request_up << " " << iface_name.c_str();
+    if (!iface_tool_.lock()->SetUpState(iface_name.c_str(), request_up)) {
+        LOG(ERROR) << "SetUpState failed";
+        return false;
+    }
+    return true;
 }
 }  // namespace iface_util
 }  // namespace implementation
